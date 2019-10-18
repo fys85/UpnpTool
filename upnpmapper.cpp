@@ -1,6 +1,6 @@
 ﻿#include "upnpmapper.h"
 #include "TcpSocket.h"
-
+#include "NetInterface.h"
 using  namespace upnp;
 using  std::cout;
 using  std::endl;
@@ -105,6 +105,20 @@ void Upnp_Connection::send_add_port_mapper(SOCKET_TYPE type,string internal_ip,i
     std::string request=this->build_xml_packet("AddPortMapping",args);
     this->send(request.c_str(),request.length());
 }
+void Upnp_Connection::send_get_specific_port_mapping_entry(SOCKET_TYPE type,int external_port)
+{
+    std::vector<std::pair<string ,string>>args;
+    args.emplace_back(std::pair<string,string>("NewRemoteHost",string()));
+    args.emplace_back(std::pair<string,string>("NewExternalPort",std::to_string(external_port)));
+    args.emplace_back(std::pair<string,string>("NewProtocol",type==SOCKET_TYPE::SOCKET_TCP?"TCP":"UDP"));
+    args.emplace_back(std::pair<string,string>("NewInternalPort",string()));
+    args.emplace_back(std::pair<string,string>("NewInternalClient",string()));
+    args.emplace_back(std::pair<string,string>("NewEnabled",string()));
+    args.emplace_back(std::pair<string,string>("NewPortMappingDescription",string()));
+    args.emplace_back(std::pair<string,string>("NewLeaseDuration",string()));
+    std::string request=this->build_xml_packet("GetSpecificPortMappingEntry",args);
+    this->send(request.c_str(),request.length());
+}
 void Upnp_Connection::send_delete_port_mapper(SOCKET_TYPE type,int external_port)
 {
     std::vector<std::pair<string ,string>>args;
@@ -164,7 +178,7 @@ void Upnp_Connection::handle_add_port_mapper()
     char status[5]={0};
     char info[128]={0};
     bool b_success=false;
-        do{
+    do{
         if(sscanf(m_buf.c_str(),"%*s %s %[^\r\n]",status,info)!=2)
         {
             cout<<"false http response! : "<<m_buf<<endl;
@@ -180,13 +194,49 @@ void Upnp_Connection::handle_add_port_mapper()
     }while(0);
     if(m_callback)m_callback(b_success);
 }
+void Upnp_Connection::handle_get_specific_port_mapping_entry()
+{
+    if(m_buf.empty())return;
+    char status[5]={0};
+    char info[128]={0};
+    bool b_success=false;
+    do{
+        if(sscanf(m_buf.c_str(),"%*s %s %[^\r\n]",status,info)!=2)
+        {
+            cout<<"false http response! : "<<m_buf<<endl;
+            break;
+        }
+        if(strcmp(status,"200")!=0)
+        {
+            cout<<"can't get port mapping entry! errorcode :"<<status<<" info:"<<info<<endl;
+            break;
+        }
+        string key="NewInternalClient";
+        auto pos=m_buf.find(key);
+        if(pos==string::npos)
+        {
+            cout<<"false http response! : "<<m_buf<<endl;
+            break;
+        }
+        char internalIP[32]={0};
+        if(sscanf(m_buf.c_str()+pos,"%*[^>]>%[^<]",internalIP)!=1)
+        {
+            cout<<"false http response! : "<<m_buf<<endl;
+            break;
+        }
+        if(xop::NetInterface::getLocalIPAddress()!=internalIP)break;
+        cout<<"get port mapping entry success!"<<endl;
+        b_success=true;
+    }while(0);
+    if(m_callback)m_callback(b_success);
+}
 void Upnp_Connection:: handle_delete_port_mapper()
 {
     if(m_buf.empty())return;
     char status[5]={0};
     char info[128]={0};
     bool b_success=false;
-        do{
+    do{
         if(sscanf(m_buf.c_str(),"%*s %s %[^\r\n]",status,info)!=2)
         {
             cout<<"false http response! : "<<m_buf<<endl;
@@ -196,18 +246,18 @@ void Upnp_Connection:: handle_delete_port_mapper()
         if(strcmp(status,"200")!=0)
         {
             cout<<"can't deleteportmapping! errorcode :"<<status<<" info:"<<info<<endl;
-             string key="errorDescription";
-             auto pos=m_buf.find(key);
-             if(pos==string::npos)
-             {
-                 cout<<"false http response! : "<<m_buf<<endl;
-                 break;
-             }
-             if(sscanf(m_buf.c_str()+pos,"%*[^>]>%[^<]",errorinfo)!=1)
-             {
-                 cout<<"false http response! : "<<m_buf<<endl;
-                 break;
-             }
+            string key="errorDescription";
+            auto pos=m_buf.find(key);
+            if(pos==string::npos)
+            {
+                cout<<"false http response! : "<<m_buf<<endl;
+                break;
+            }
+            if(sscanf(m_buf.c_str()+pos,"%*[^>]>%[^<]",errorinfo)!=1)
+            {
+                cout<<"false http response! : "<<m_buf<<endl;
+                break;
+            }
         }
         cout<<"delete port mapping success!"<<"(error info :"<<errorinfo<<")"<<endl;
         b_success=true;
@@ -273,6 +323,9 @@ void Upnp_Connection::HandleData()
         break;
     case UPNP_ADDPORTMAPPING:
         handle_add_port_mapper();
+        break;
+    case UPNP_GETSPECIFICPORTMAPPINGENTRY:
+        handle_get_specific_port_mapping_entry();
         break;
     case UPNP_DELETEPORTMAPPING:
         handle_delete_port_mapper();
@@ -345,10 +398,22 @@ void UpnpMapper:: Api_addportMapper(SOCKET_TYPE type,string internal_ip,int inte
     std::thread t(std::bind(&UpnpMapper::add_port_mapper,this,type,internal_ip,internal_port,external_port,description,callback));
     t.detach();
 }
+void UpnpMapper:: Api_GetSpecificPortMappingEntry(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback)
+{
+    if(!m_init_ok||m_control_url==string())return;
+    std::thread t(std::bind(&UpnpMapper::get_specific_port_mapping_entry,this,type,external_port,callback));
+    t.detach();
+}
 void UpnpMapper::Api_deleteportMapper(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback)
 {
     if(!m_init_ok||m_control_url==string())return;
     std::thread t(std::bind(&UpnpMapper::delete_port_mapper,this,type,external_port,callback));
+    t.detach();
+}
+void UpnpMapper::Api_GetNewexternalIP(UPNPCALLBACK callback)
+{
+if(!m_init_ok||m_control_url==string())return;
+    std::thread t(std::bind(&UpnpMapper::get_wanip,this,callback));
     t.detach();
 }
 std::shared_ptr<Upnp_Connection> UpnpMapper::newConnection(SOCKET sockfd,UPNP_COMMAND mode)
@@ -358,13 +423,13 @@ std::shared_ptr<Upnp_Connection> UpnpMapper::newConnection(SOCKET sockfd,UPNP_CO
 void UpnpMapper::addConnection(SOCKET sockfd, std::shared_ptr<Upnp_Connection> Conn)
 {
     Conn->setDisconnectCallback([this] (xop::TcpConnection::Ptr conn){
-                    auto taskScheduler = conn->getTaskScheduler();
-                    int sockfd = conn->fd();
-                    if (!taskScheduler->addTriggerEvent([this, sockfd] {this->removeConnection(sockfd); }))
-                    {
-                        taskScheduler->addTimer([this, sockfd]() {this->removeConnection(sockfd); return false;}, 1);
-                    }
-            });
+        auto taskScheduler = conn->getTaskScheduler();
+        int sockfd = conn->fd();
+        if (!taskScheduler->addTriggerEvent([this, sockfd] {this->removeConnection(sockfd); }))
+        {
+            taskScheduler->addTimer([this, sockfd]() {this->removeConnection(sockfd); return false;}, 1);
+        }
+    });
     std::lock_guard<std::mutex> locker(m_map_mutex);
     m_connections.emplace(sockfd, Conn);
 }
@@ -492,6 +557,31 @@ void UpnpMapper::add_port_mapper(SOCKET_TYPE type,string internal_ip,int interna
         addConnection(tcpsock.fd(),conn);
         if(callback)conn->setUPNPCallback(callback);
         conn->send_add_port_mapper(type,internal_ip,internal_port,external_port,description);
+        //must wake_up event_loop
+        m_event_loop->addTriggerEvent([](){});
+    }
+}
+void UpnpMapper::get_specific_port_mapping_entry(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback)
+{
+    xop::TcpSocket tcpsock;
+    tcpsock.create();
+    if(tcpsock.fd()<=0)
+    {
+        cout<<"failed to create socket!"<<endl;
+        return;
+    }
+    if(!tcpsock.connect(m_lgd_ip,m_lgd_port,MAX_WAIT_TIME))
+    {
+        cout<<"failed to connect to the device!"<<endl;
+        tcpsock.close();
+        return;
+    }
+    auto conn=newConnection(tcpsock.fd(),UPNP_GETSPECIFICPORTMAPPINGENTRY);
+    if(conn)
+    {
+        addConnection(tcpsock.fd(),conn);
+        if(callback)conn->setUPNPCallback(callback);
+        conn->send_get_specific_port_mapping_entry(type,external_port);
         //must wake_up event_loop
         m_event_loop->addTriggerEvent([](){});
     }

@@ -23,6 +23,7 @@ typedef enum{
     UPNP_GETCONTROLURL,
     UPNP_GETEXTERNALIPADDRESS,
     UPNP_ADDPORTMAPPING,
+    UPNP_GETSPECIFICPORTMAPPINGENTRY,
     UPNP_DELETEPORTMAPPING,
 }UPNP_COMMAND;
 class Upnp_Connection : public xop::TcpConnection{
@@ -48,10 +49,12 @@ private:
     bool check_packet();
     void send_get_wanip();
     void send_add_port_mapper(SOCKET_TYPE type,string internal_ip,int internal_port,int external_port,string description);
+    void send_get_specific_port_mapping_entry(SOCKET_TYPE type,int external_port);
     void send_delete_port_mapper(SOCKET_TYPE type,int external_port);
     void send_get_control_url();
     void handle_get_wanip();
     void handle_add_port_mapper();
+    void handle_get_specific_port_mapping_entry();
     void handle_delete_port_mapper();
     void handle_get_control_url();
 };
@@ -62,7 +65,9 @@ public:
     static UpnpMapper &Instance(){static UpnpMapper instance;return instance; }
     void Init(xop::EventLoop *event_loop,string lgd_ip);
     void Api_addportMapper(SOCKET_TYPE type,string internal_ip,int internal_port,int external_port,string description,UPNPCALLBACK callback=nullptr);
+    void Api_GetSpecificPortMappingEntry(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback=nullptr);
     void Api_deleteportMapper(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback=nullptr);
+    void Api_GetNewexternalIP(UPNPCALLBACK callback=nullptr);
     string APi_getexternalIP(){return m_wan_ip;}
 protected:
     std::shared_ptr<Upnp_Connection> newConnection(SOCKET sockfd,UPNP_COMMAND mode);
@@ -74,6 +79,7 @@ private:
     void get_control_url();
     void get_wanip(UPNPCALLBACK callback=nullptr);
     void add_port_mapper(SOCKET_TYPE type,string internal_ip,int internal_port,int external_port,string description,UPNPCALLBACK callback=nullptr);
+    void get_specific_port_mapping_entry(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback=nullptr);
     void delete_port_mapper(SOCKET_TYPE type,int external_port,UPNPCALLBACK callback=nullptr);
     std::shared_ptr<xop::Channel>m_udp_channel;
     xop::EventLoop *m_event_loop;
