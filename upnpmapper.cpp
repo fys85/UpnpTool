@@ -25,24 +25,24 @@ string Upnp_Connection::build_xml_packet(string action,std::vector<std::pair<str
 
     string packet="<?xml version=\"1.0\"?>\r\n";
     packet+="<" SOAPPREFIX ":Envelope\r\n";
-    packet+="xmlns:" SOAPPREFIX "=\"http://schemas.xmlsoap.org/soap/envelope/\"\r\n";
-    packet+=SOAPPREFIX ":encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n";
-    packet+="<" SOAPPREFIX ":Body>\r\n";
+    packet+="    xmlns:" SOAPPREFIX "=\"http://schemas.xmlsoap.org/soap/envelope/\"\r\n    ";
+    packet+=SOAPPREFIX ":encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n  ";
+    packet+="<" SOAPPREFIX ":Body>\r\n    ";
     packet+="<" SERVICEPREFIX ":"+action+" xmlns:" SERVICEPREFIX "=\""+m_upnp_mapper->m_control_string+"\">\r\n";
     if(!args.empty())
         for(auto i : args)
         {
-            packet+="<"+i.first+">"+i.second+"</"+i.first+">\r\n";
+            packet+="      <"+i.first+">"+i.second+"</"+i.first+">\r\n";
         }
-    packet+="</" SERVICEPREFIX ":"+action+">\r\n";
-    packet+="</" SOAPPREFIX ":Body>\r\n</" SOAPPREFIX ":Envelope>\r\n";
+    packet+="    </" SERVICEPREFIX ":"+action+">\r\n";
+    packet+="  </" SOAPPREFIX ":Body>\r\n</" SOAPPREFIX ":Envelope>\r\n";
     packet+="\r\n";
     string request="POST ";
     request=request+m_upnp_mapper->m_control_url+" HTTP/1.1\r\n";
-    request=request+"Host: "+m_upnp_mapper->m_lgd_ip+"\r\n";
-    request=request+"SOAPAction: "+m_upnp_mapper->m_control_string+"#"+action+"\r\n";
+    request=request+"Host: "+m_upnp_mapper->m_lgd_ip+":"+std::to_string(m_upnp_mapper->m_lgd_port)+"\r\n";
+    request=request+"SOAPAction: \""+m_upnp_mapper->m_control_string+"#"+action+"\"\r\n";
     request=request+"User-Agent: micagent_upnp_tool\r\n";
-    request=request+"Content-Type: text/xml\r\n";
+    request=request+"Content-Type: text/xml; charset=\"utf-8\"\r\n";
     request=request+"Connection: close\r\n";
     request=request+"Content-Length: "+std::to_string(packet.length())+"\r\n";
     request+="\r\n";
@@ -132,7 +132,7 @@ void Upnp_Connection::send_get_control_url()
 {
     string request="GET ";
     request=request+m_upnp_mapper->m_location_src+" HTTP/1.1\r\n";
-    request=request+"Host: "+m_upnp_mapper->m_lgd_ip+"\r\n";
+     request=request+"Host: "+m_upnp_mapper->m_lgd_ip+":"+std::to_string(m_upnp_mapper->m_lgd_port)+"\r\n";
     request=request+"User-Agent: micagent_upnp_tool\r\n";
     request=request+"Accept: application/xml\r\n";
     request=request+"Connection: keep-alive\r\n";
