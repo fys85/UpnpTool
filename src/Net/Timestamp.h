@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <chrono>
 #include <thread>
-
+#include <string>
 namespace xop
 {
     

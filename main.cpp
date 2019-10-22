@@ -9,7 +9,7 @@ int main()
     t.detach();
     upnp::UpnpMapper::Instance().Init(&eventloop,"192.168.2.3");
     xop::Timer::sleep(1000);
-    upnp::UpnpMapper::Instance().Api_addportMapper(upnp::SOCKET_TCP,"192.168.2.111",8557,5890,"upnp_test",nullptr);
+    upnp::UpnpMapper::Instance().Api_addportMapper(upnp::SOCKET_TCP,"192.168.2.199",8557,5890,"upnp_test",nullptr);
 //    upnp::UpnpMapper::Instance().Api_addportMapper(upnp::SOCKET_UDP,"192.168.2.111",8558,5891,"upnp_test",nullptr);
 //    upnp::UpnpMapper::Instance().Api_addportMapper(upnp::SOCKET_UDP,"192.168.2.111",8559,5892,"upnp_test",nullptr);
 //    upnp::UpnpMapper::Instance().Api_addportMapper(upnp::SOCKET_UDP,"192.168.2.111",8560,8560,"upnp_test",nullptr);

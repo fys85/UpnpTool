@@ -344,13 +344,20 @@ void UpnpMapper::Init(xop::EventLoop *event_loop,string lgd_ip)
     m_wan_ip=string();
     m_init_ok=false;
     int fd=socket(AF_INET,SOCK_DGRAM,0);
+	xop::SocketUtil::bind(fd, "192.168.2.199", 65000);
     m_udp_channel.reset(new xop::Channel(fd));
     m_udp_channel->enableReading();
     m_udp_channel->setReadCallback([this](){
         struct sockaddr_in addr = {0};
-        socklen_t addr_len;
+#if defined(__linux) || defined(__linux__)
+		socklen_t addr_len;
+#else
+		socklen_t addr_len=sizeof(struct sockaddr);
+#endif // defined(__linux) || defined(__linux__) 
+
         char buf[4096]={0};
         int len=recvfrom(this->m_udp_channel->fd(),buf,4096,0,(struct sockaddr *)&addr,(socklen_t *)&addr_len);
+		std::cout << len << "  "<< WSAGetLastError ()<<std::endl;
         if(len>0)
         {
             if(m_lgd_ip==inet_ntoa(addr.sin_addr))
@@ -385,6 +392,7 @@ void UpnpMapper::Init(xop::EventLoop *event_loop,string lgd_ip)
     });
     event_loop->updateChannel(m_udp_channel);
     send_discover_packet();
+	
     event_loop->addTimer([this](){
         if(this->m_location_src!=string()&&this->m_control_url!=string())
         {
@@ -395,7 +403,7 @@ void UpnpMapper::Init(xop::EventLoop *event_loop,string lgd_ip)
         send_discover_packet();
         cout<<"no upnp suppot!"<<endl;
         return true;
-    },MAX_WAIT_TIME*2);
+    },1000);
 }
 void UpnpMapper:: Api_addportMapper(SOCKET_TYPE type,string internal_ip,int internal_port,int external_port,string description,UPNPCALLBACK callback)
 {
