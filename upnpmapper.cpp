@@ -386,10 +386,15 @@ void UpnpMapper::Init(xop::EventLoop *event_loop,string lgd_ip)
     event_loop->updateChannel(m_udp_channel);
     send_discover_packet();
     event_loop->addTimer([this](){
-        if(this->m_location_src!=string()&&this->m_control_url!=string())return false;
+        if(this->m_location_src!=string()&&this->m_control_url!=string())
+        {
+            this->m_event_loop->removeChannel(m_udp_channel);
+            m_udp_channel.reset();
+            return false;
+        }
+        send_discover_packet();
         cout<<"no upnp suppot!"<<endl;
-        this->m_event_loop->removeChannel(m_udp_channel);
-        return false;
+        return true;
     },MAX_WAIT_TIME*2);
 }
 void UpnpMapper:: Api_addportMapper(SOCKET_TYPE type,string internal_ip,int internal_port,int external_port,string description,UPNPCALLBACK callback)
